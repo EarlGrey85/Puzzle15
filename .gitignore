@@ -1,3 +1,7 @@
+.idea
+cmake-build-debug
+CMakeLists.txt
+
 # Visual Studio 2015 user specific files
 .vs/
 
@@ -69,3 +73,20 @@ DerivedDataCache/*
 *.swp
 *.swo
 .ctrlp_cache/
+
+/.vs
+ /Binaries
+ /Export
+ /Intermediate
+ /PersistentDownloadDir
+ /Saved
+ /Staging
+ *.xcodeproj
+ *.xcworkspace
+ *.sdf
+ *.sln
+ *.opensdf
+ *.db
+ *.opendb
+ *.log
+ .DS_Store
