@@ -10,6 +10,8 @@ static FVector boardPosition;
 static float boardWidth = 0;
 static float boardExtentsZ = 0;
 static FTransform transform;
+static float initialOffset;
+static float tileSize;
 
 // Sets default values
 AGameboardActor::AGameboardActor()
@@ -35,15 +37,14 @@ void AGameboardActor::BeginPlay()
     boardExtentsZ = boardExt.X;
 
     this->OnClicked.AddDynamic(this, &AGameboardActor::OnSelected);
-    //OnClicked.AddUniqueDynamic(this, &AMyCharacter::OnSelected);
 }
 
-// void GetCoordinates(const FVector* hitPos)
-// {
-//     int column = ((*hitPos).X + GetActorLocation().X - tileSize * initialOffset) / tileSize;
-//     int raw = ((*hitPos).Y - GetActorLocation().Y - tileSize * initialOffset + tileSize * 0.5f) / tileSize;
-//     UE_LOG(LogTemp, Warning, TEXT("%d:%d"), column, raw);
-// }
+void GetCoordinates(const FVector* hitPos)
+{
+    int column = ((*hitPos).X + boardPosition.X - tileSize * initialOffset) / tileSize;
+    int raw = ((*hitPos).Y - boardPosition.Y - tileSize * initialOffset + tileSize * 0.5f) / tileSize;
+    UE_LOG(LogTemp, Warning, TEXT("%d:%d"), column, raw);
+}
 
 void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
 {
@@ -58,10 +59,10 @@ void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
         UE_LOG(LogTemp, Warning, TEXT("suka, %s"), *location.ToString());
     }
 
-    // GetCoordinates(&location);
+    GetCoordinates(&location);
 }
 
-static FVector GetTileSpawnPosition(float tileSize, float initialOffset, float zPos, int raw, int col)
+static FVector GetTileSpawnPosition(float zPos, int raw, int col)
 {
     auto pos = FVector::UpVector * (zPos + 3);
     pos.Y -= tileSize * (initialOffset - col);
@@ -78,8 +79,8 @@ void AGameboardActor::SpawnTiles(int numTiles)
     
     auto ratio = static_cast<float>(1) / static_cast<float>(numTiles) * 0.90f; // * (boardWidth / tileWidth)
     tileScale = FVector(ratio, ratio, ratio);
-    auto tileSize = boardWidth / numTiles;
-    auto initialOffset = numTiles % 2 == 0 ? numTiles / 2 - 0.5 : numTiles / 2;
+    tileSize = boardWidth / numTiles;
+    initialOffset = numTiles % 2 == 0 ? numTiles / 2 - 0.5 : numTiles / 2;
     FVector tileExtents = FVector::ZeroVector;
     
     for (int i = 0; i < numTiles * numTiles - 1; ++i)
@@ -97,7 +98,7 @@ void AGameboardActor::SpawnTiles(int numTiles)
             t->GetActorBounds(false, pos, tileExtents);
         }
 
-        const auto tilePos = GetTileSpawnPosition(tileSize, initialOffset, tileExtents.X, raw, col);
+        const auto tilePos = GetTileSpawnPosition(tileExtents.X, raw, col);
         t->SetActorRelativeLocation(tilePos);
         t->SetNum(i + 1);
         grid[i] = t;
