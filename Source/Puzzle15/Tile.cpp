@@ -24,6 +24,12 @@ void ATile::SetNum(int num)
 	lblNum->SetText(FText::AsNumber(num));
 }
 
+void ATile::SetActive(const bool activate) 
+{
+	SetActorHiddenInGame(!activate);
+	//SetActorTickEnabled(activate);
+}
+
 void ATile::BeginPlay()
 {
 	Super::BeginPlay();

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <queue>
+
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Tile.h"
@@ -34,6 +36,10 @@ protected:
 
 private:
 	ATile** grid;
+	std::queue<ATile*> pool;
+
+	ATile* GetTile();
+	void RecycleTile(ATile*);
 
 public:	
 	virtual void Tick(float DeltaTime) override;

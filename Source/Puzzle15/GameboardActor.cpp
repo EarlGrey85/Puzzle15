@@ -12,6 +12,8 @@ static float boardExtentsZ = 0;
 static FTransform transform;
 static float initialOffset;
 static float tileSize;
+static int lastTileCount;
+static int numTiles;
 
 // Sets default values
 AGameboardActor::AGameboardActor()
@@ -41,8 +43,8 @@ void AGameboardActor::BeginPlay()
 
 void GetCoordinates(const FVector* hitPos)
 {
-    int column = ((*hitPos).X + boardPosition.X - tileSize * initialOffset) / tileSize;
-    int raw = ((*hitPos).Y - boardPosition.Y - tileSize * initialOffset + tileSize * 0.5f) / tileSize;
+    int column = ((*hitPos).Y + tileSize * (initialOffset + 0.5f)) / tileSize;
+    int raw = numTiles - ((*hitPos).X + tileSize * (initialOffset + 0.5f)) / tileSize;
     UE_LOG(LogTemp, Warning, TEXT("%d:%d"), column, raw);
 }
 
@@ -51,14 +53,6 @@ void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
     FHitResult hit(ForceInit);
     UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetHitResultUnderCursor(ECollisionChannel::ECC_WorldDynamic, false, hit);
     auto location = GetTransform().InverseTransformPositionNoScale(hit.ImpactPoint);
-
-    UE_LOG(LogTemp, Warning, TEXT("suka, %s"), "1234");
-    
-    if (hit.GetActor() != nullptr)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("suka, %s"), *location.ToString());
-    }
-
     GetCoordinates(&location);
 }
 
@@ -70,25 +64,35 @@ static FVector GetTileSpawnPosition(float zPos, int raw, int col)
     return pos;
 }
 
-void AGameboardActor::SpawnTiles(int numTiles)
+void AGameboardActor::SpawnTiles(int num)
 {
-    delete[] grid;
-    grid = new ATile *[numTiles * numTiles];
+    UE_LOG(LogTemp, Warning, TEXT("suka, %f, %f"), pool.size(), sizeof(int));
+    if(grid != nullptr)
+    {
+        for (int i = 0; i < lastTileCount; ++i)
+        {
+            RecycleTile(grid[i]);
+        }
 
-    UE_LOG(LogTemp, Warning, TEXT("%d"), numTiles);
-    
-    auto ratio = static_cast<float>(1) / static_cast<float>(numTiles) * 0.90f; // * (boardWidth / tileWidth)
+        delete[] grid;
+    }
+
+    lastTileCount = num * num;
+    grid = new ATile *[lastTileCount]{nullptr};
+    numTiles = num;
+
+    auto ratio = static_cast<float>(1) / static_cast<float>(num) * 0.90f; // * (boardWidth / tileWidth)
     tileScale = FVector(ratio, ratio, ratio);
-    tileSize = boardWidth / numTiles;
-    initialOffset = numTiles % 2 == 0 ? numTiles / 2 - 0.5 : numTiles / 2;
+    tileSize = boardWidth / num;
+    initialOffset = num % 2 == 0 ? num / 2 - 0.5 : num / 2;
     FVector tileExtents = FVector::ZeroVector;
     
-    for (int i = 0; i < numTiles * numTiles - 1; ++i)
+    for (int i = 0; i < num * num - 1; ++i)
     {
-        auto raw = i / numTiles;
-        auto col = i % numTiles;
+        auto raw = i / num;
+        auto col = i % num;
         
-        auto t = GetWorld()->SpawnActor<ATile>(tile, transform);
+        auto t = GetTile();
         t->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true)); 
         t->SetActorRelativeScale3D(tileScale);
 
@@ -105,13 +109,33 @@ void AGameboardActor::SpawnTiles(int numTiles)
     }
 }
 
+ATile* AGameboardActor::GetTile()
+{
+    if(pool.empty())
+    {
+        return  GetWorld()->SpawnActor<ATile>(tile, transform);
+    }
+
+    const auto t = pool.front();
+    pool.pop();
+    t->SetActive(true);
+    UE_LOG(LogTemp, Warning, TEXT("%d, pool size"), pool.size());
+    return t;
+}
+
+void AGameboardActor::RecycleTile(ATile* t)
+{
+    if(t == nullptr)
+    {
+        return;
+    }
+    
+    pool.emplace(t);
+    t->SetActive(false);
+}
+
 // Called every frame
 void AGameboardActor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-
-    float mouseX;
-    float mouseY;
-    UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetMousePosition(mouseX, mouseY);
-    //UE_LOG(LogTemp, Warning, TEXT("Mouse Location: %f, %f"), mouseX, mouseY);
 }
