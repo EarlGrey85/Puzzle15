@@ -4,6 +4,7 @@
 #include "GameboardActor.h"
 
 #include "Kismet/GameplayStatics.h"
+#include "Coord.h"
 
 static FVector tileScale;
 static FVector boardPosition;
@@ -14,6 +15,13 @@ static float initialOffset;
 static float tileSize;
 static int lastTileCount;
 static int numTiles;
+struct Coord emptyTileCoord;
+Coord movement;
+static Coord noMovement = Coord(0, 0);
+static Coord rightMove = Coord(1, 0);
+static Coord leftMove = Coord(-1, 0);
+static Coord upMove = Coord(0, -1);
+static Coord downMove = Coord(0, 1);
 
 // Sets default values
 AGameboardActor::AGameboardActor()
@@ -27,6 +35,7 @@ AGameboardActor::AGameboardActor()
     transform = GetTransform();
     UE_LOG(LogTemp, Warning, TEXT("%s"), *boardPosition.ToString());
     UE_LOG(LogTemp, Warning, TEXT("%s"), "1");
+   
 }
 
 // Called when the game starts or when spawned
@@ -41,19 +50,84 @@ void AGameboardActor::BeginPlay()
     this->OnClicked.AddDynamic(this, &AGameboardActor::OnSelected);
 }
 
-void GetCoordinates(const FVector* hitPos)
+Coord GetCoordinates(const FVector* hitPos)
 {
     int column = ((*hitPos).Y + tileSize * (initialOffset + 0.5f)) / tileSize;
     int raw = numTiles - ((*hitPos).X + tileSize * (initialOffset + 0.5f)) / tileSize;
     UE_LOG(LogTemp, Warning, TEXT("%d:%d"), column, raw);
+
+    return Coord(column, raw);
 }
 
 void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
 {
     FHitResult hit(ForceInit);
-    UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetHitResultUnderCursor(ECollisionChannel::ECC_WorldDynamic, false, hit);
+    UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetHitResultUnderCursor(ECC_WorldDynamic, false, hit);
     auto location = GetTransform().InverseTransformPositionNoScale(hit.ImpactPoint);
-    GetCoordinates(&location);
+    auto hitCoord = GetCoordinates(&location);
+    const auto moveDir = DetermineMoveDir(&hitCoord);
+    Move(&hitCoord, moveDir);
+}
+
+Coord* AGameboardActor::DetermineMoveDir(Coord* hitCoord)
+{
+    if(hitCoord->X != emptyTileCoord.X && hitCoord->Y != emptyTileCoord.Y)
+    {
+        return &noMovement;
+    }
+
+    if(hitCoord->X == emptyTileCoord.X && hitCoord->Y == emptyTileCoord.Y)
+    {
+        return &noMovement;
+    }
+
+    if(hitCoord->X == emptyTileCoord.X)
+    {
+        return  hitCoord->Y < emptyTileCoord.Y ? &downMove : &upMove;
+    }
+
+    return  hitCoord->X < emptyTileCoord.X ? &rightMove : &leftMove;
+}
+
+void AGameboardActor::Move(Coord* hitCoord, Coord* move)
+{
+    
+    // UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), move->X, move->Y);
+    // UE_LOG(LogTemp, Warning, TEXT("hitCoord %d:%d"), hitCoord->X, hitCoord->Y);
+    // UE_LOG(LogTemp, Warning, TEXT("emptyTileCoord %d:%d"), emptyTileCoord.X, emptyTileCoord.Y);
+
+    auto offset = numTiles * hitCoord->Y;
+    auto index = emptyTileCoord.X + numTiles * emptyTileCoord.Y;
+    auto nextEmptyTileIndex = hitCoord->X + offset;
+    
+    UE_LOG(LogTemp, Warning, TEXT("A: %d, %d"), index, nextEmptyTileIndex);
+    
+    if(hitCoord->Y == emptyTileCoord.Y)
+    {
+        while (index != nextEmptyTileIndex)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.X);
+            grid[index] = grid[index - move->X];
+            index -= move->X;
+        }
+    }
+    else if(hitCoord->X == emptyTileCoord.X)
+    {
+        while (index != nextEmptyTileIndex)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.Y);
+            grid[index] = grid[index - move->Y * numTiles];
+            index -= move->Y * numTiles;
+        }
+    }
+
+    emptyTileCoord = *hitCoord;
+    grid[nextEmptyTileIndex] = nullptr;
+
+    for (int i = 0; i < numTiles * numTiles; i++)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("tile %d"), grid[i] == nullptr ? -1 : grid[i]->GetNum());
+    }
 }
 
 static FVector GetTileSpawnPosition(float zPos, int raw, int col)
@@ -67,7 +141,7 @@ static FVector GetTileSpawnPosition(float zPos, int raw, int col)
 void AGameboardActor::SpawnTiles(int num)
 {
     UE_LOG(LogTemp, Warning, TEXT("suka, %f, %f"), pool.size(), sizeof(int));
-    if(grid != nullptr)
+    if (grid != nullptr)
     {
         for (int i = 0; i < lastTileCount; ++i)
         {
@@ -78,7 +152,7 @@ void AGameboardActor::SpawnTiles(int num)
     }
 
     lastTileCount = num * num;
-    grid = new ATile *[lastTileCount]{nullptr};
+    grid = new ATile*[lastTileCount]{nullptr};
     numTiles = num;
 
     auto ratio = static_cast<float>(1) / static_cast<float>(num) * 0.90f; // * (boardWidth / tileWidth)
@@ -86,17 +160,17 @@ void AGameboardActor::SpawnTiles(int num)
     tileSize = boardWidth / num;
     initialOffset = num % 2 == 0 ? num / 2 - 0.5 : num / 2;
     FVector tileExtents = FVector::ZeroVector;
-    
+
     for (int i = 0; i < num * num - 1; ++i)
     {
         auto raw = i / num;
         auto col = i % num;
-        
+
         auto t = GetTile();
-        t->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true)); 
+        t->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
         t->SetActorRelativeScale3D(tileScale);
 
-        if(tileExtents.IsZero())
+        if (tileExtents.IsZero())
         {
             FVector pos = t->GetActorLocation();
             t->GetActorBounds(false, pos, tileExtents);
@@ -107,13 +181,15 @@ void AGameboardActor::SpawnTiles(int num)
         t->SetNum(i + 1);
         grid[i] = t;
     }
+
+    emptyTileCoord = Coord(num - 1, num - 1);
 }
 
 ATile* AGameboardActor::GetTile()
 {
-    if(pool.empty())
+    if (pool.empty())
     {
-        return  GetWorld()->SpawnActor<ATile>(tile, transform);
+        return GetWorld()->SpawnActor<ATile>(tile, transform);
     }
 
     const auto t = pool.front();
@@ -125,11 +201,11 @@ ATile* AGameboardActor::GetTile()
 
 void AGameboardActor::RecycleTile(ATile* t)
 {
-    if(t == nullptr)
+    if (t == nullptr)
     {
         return;
     }
-    
+
     pool.emplace(t);
     t->SetActive(false);
 }

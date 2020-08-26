@@ -14,20 +14,26 @@ ATile::ATile()
 	SetRootComponent(TileMesh);
 }
 
-void ATile::SetNum(int num)
+int ATile::GetNum()
+{
+	return num;
+}
+
+void ATile::SetNum(int n)
 {
 	if(lblNum == nullptr)
 	{
 		return;
 	}
 	
-	lblNum->SetText(FText::AsNumber(num));
+	lblNum->SetText(FText::AsNumber(n));
+	num = n;
 }
 
 void ATile::SetActive(const bool activate) 
 {
 	SetActorHiddenInGame(!activate);
-	//SetActorTickEnabled(activate);
+	SetActorTickEnabled(activate);
 }
 
 void ATile::BeginPlay()

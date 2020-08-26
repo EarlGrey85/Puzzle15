@@ -18,7 +18,8 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* TileMesh;
 
-	void SetNum(int num);
+	int GetNum();	
+	void SetNum(int n);
 
 protected:
 	// Called when the game starts or when spawned
@@ -29,6 +30,8 @@ private:
 
 	UPROPERTY(VisibleInstanceOnly)
 	UTextRenderComponent* _displayText;
+
+	int num;
 
 public:	
 	// Called every frame
