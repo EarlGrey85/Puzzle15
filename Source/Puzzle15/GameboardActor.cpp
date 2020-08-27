@@ -16,7 +16,7 @@ static float tileSize;
 static int lastTileCount;
 static int numTiles;
 struct Coord emptyTileCoord;
-Coord movement;
+FVector movementDir;
 static Coord noMovement = Coord(0, 0);
 static Coord rightMove = Coord(1, 0);
 static Coord leftMove = Coord(-1, 0);
@@ -66,7 +66,13 @@ void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
     auto location = GetTransform().InverseTransformPositionNoScale(hit.ImpactPoint);
     auto hitCoord = GetCoordinates(&location);
     const auto moveDir = DetermineMoveDir(&hitCoord);
+    movementDir = FVector(moveDir->Y, moveDir->X, 0);
     Move(&hitCoord, moveDir);
+}
+
+AGameboardActor::~AGameboardActor()
+{
+    delete[] _grid;
 }
 
 Coord* AGameboardActor::DetermineMoveDir(Coord* hitCoord)
@@ -91,23 +97,18 @@ Coord* AGameboardActor::DetermineMoveDir(Coord* hitCoord)
 
 void AGameboardActor::Move(Coord* hitCoord, Coord* move)
 {
-    
-    // UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), move->X, move->Y);
-    // UE_LOG(LogTemp, Warning, TEXT("hitCoord %d:%d"), hitCoord->X, hitCoord->Y);
-    // UE_LOG(LogTemp, Warning, TEXT("emptyTileCoord %d:%d"), emptyTileCoord.X, emptyTileCoord.Y);
-
     auto offset = numTiles * hitCoord->Y;
     auto index = emptyTileCoord.X + numTiles * emptyTileCoord.Y;
     auto nextEmptyTileIndex = hitCoord->X + offset;
-    
-    UE_LOG(LogTemp, Warning, TEXT("A: %d, %d"), index, nextEmptyTileIndex);
     
     if(hitCoord->Y == emptyTileCoord.Y)
     {
         while (index != nextEmptyTileIndex)
         {
             UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.X);
-            grid[index] = grid[index - move->X];
+            const auto nextIndex = index - move->X;
+            _grid[nextIndex]->MoveTo(movementDir);
+            _grid[index] = _grid[nextIndex];
             index -= move->X;
         }
     }
@@ -116,17 +117,19 @@ void AGameboardActor::Move(Coord* hitCoord, Coord* move)
         while (index != nextEmptyTileIndex)
         {
             UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.Y);
-            grid[index] = grid[index - move->Y * numTiles];
+            const auto nextIndex = index - move->Y * numTiles;
+            _grid[nextIndex]->MoveTo(-movementDir);
+            _grid[index] = _grid[nextIndex];
             index -= move->Y * numTiles;
         }
     }
 
     emptyTileCoord = *hitCoord;
-    grid[nextEmptyTileIndex] = nullptr;
+    _grid[nextEmptyTileIndex] = nullptr;
 
     for (int i = 0; i < numTiles * numTiles; i++)
     {
-        UE_LOG(LogTemp, Warning, TEXT("tile %d"), grid[i] == nullptr ? -1 : grid[i]->GetNum());
+        UE_LOG(LogTemp, Warning, TEXT("tile %d"), _grid[i] == nullptr ? -1 : _grid[i]->GetNum());
     }
 }
 
@@ -141,18 +144,18 @@ static FVector GetTileSpawnPosition(float zPos, int raw, int col)
 void AGameboardActor::SpawnTiles(int num)
 {
     UE_LOG(LogTemp, Warning, TEXT("suka, %f, %f"), pool.size(), sizeof(int));
-    if (grid != nullptr)
+    if (_grid != nullptr)
     {
         for (int i = 0; i < lastTileCount; ++i)
         {
-            RecycleTile(grid[i]);
+            RecycleTile(_grid[i]);
         }
 
-        delete[] grid;
+        delete[] _grid;
     }
 
     lastTileCount = num * num;
-    grid = new ATile*[lastTileCount]{nullptr};
+    _grid = new ATile*[lastTileCount]{nullptr};
     numTiles = num;
 
     auto ratio = static_cast<float>(1) / static_cast<float>(num) * 0.90f; // * (boardWidth / tileWidth)
@@ -178,8 +181,8 @@ void AGameboardActor::SpawnTiles(int num)
 
         const auto tilePos = GetTileSpawnPosition(tileExtents.X, raw, col);
         t->SetActorRelativeLocation(tilePos);
-        t->SetNum(i + 1);
-        grid[i] = t;
+        t->Initialize(i + 1, &tileSize);
+        _grid[i] = t;
     }
 
     emptyTileCoord = Coord(num - 1, num - 1);

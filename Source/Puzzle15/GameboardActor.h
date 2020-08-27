@@ -42,11 +42,13 @@ public:
 	UFUNCTION()
 	void OnSelected(AActor* Target, FKey ButtonPressed);
 
+	virtual ~AGameboardActor();
+
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	ATile** grid;
+	ATile** _grid;
 	std::queue<ATile*> pool;
 
 	ATile* GetTile();
