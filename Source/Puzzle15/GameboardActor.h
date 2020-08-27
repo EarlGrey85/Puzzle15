@@ -4,7 +4,6 @@
 
 #include <queue>
 
-
 #include "Coord.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -29,12 +28,15 @@ class PUZZLE15_API AGameboardActor : public AActor
 	
 public:	
 	AGameboardActor();
+
+	UPROPERTY(EditDefaultsOnly)
+	float _tileMoveDuration = 0.25f;
 	
 	UPROPERTY(VisibleAnywhere)
-	UStaticMeshComponent* boardMesh;
+	UStaticMeshComponent* _boardMesh;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gameboard")
-	TSubclassOf<class ATile> tile;
+	TSubclassOf<class ATile> _tile;
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnTiles(int numTiles);
@@ -49,15 +51,10 @@ protected:
 
 private:
 	ATile** _grid;
-	std::queue<ATile*> pool;
+	std::queue<ATile*> _pool;
 
 	ATile* GetTile();
 	void RecycleTile(ATile*);
 	Coord* DetermineMoveDir(Coord* hitCoord);
 	void Move(Coord* hitCoord, Coord* movement);
-	
-
-public:	
-	virtual void Tick(float DeltaTime) override;
-
 };

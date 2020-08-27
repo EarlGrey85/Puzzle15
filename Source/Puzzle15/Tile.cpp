@@ -1,12 +1,10 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Tile.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 
-// Sets default values
+float timeToMove = 0; //todo: to Settings class
+
 ATile::ATile()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -16,12 +14,12 @@ ATile::ATile()
 	_latentInfo.CallbackTarget = this;
 }
 
-int ATile::GetNum()
+int ATile::GetNum() const
 {
 	return _num;
 }
 
-void ATile::Initialize(int num, float* width)
+void ATile::Initialize(int num, float& width, float& duration)
 {
 	if(lblNum == nullptr)
 	{
@@ -30,20 +28,20 @@ void ATile::Initialize(int num, float* width)
 	
 	lblNum->SetText(FText::AsNumber(num));
 	_num = num;
-	_width = *width;
+	_width = width;
+	timeToMove = duration;
 }
 
-void ATile::MoveTo(FVector dir)
+void ATile::MoveTo(const FVector dir) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("dir: %s"), *dir.ToString());
-	
+	UE_LOG(LogTemp, Warning, TEXT("%f"), timeToMove);
 	UKismetSystemLibrary::MoveComponentTo(
 		TileMesh,
 		TileMesh->GetRelativeLocation() + dir * _width,
 		TileMesh->GetRelativeRotation(),
 		false,
 		false,
-		1,
+		timeToMove,
 		false,
 		EMoveComponentAction::Move,
 		_latentInfo);
@@ -57,8 +55,7 @@ void ATile::SetActive(const bool activate)
 
 void ATile::MoveStateTick(float deltaTime)
 {
-	auto pos = GetActorLocation();
-	SetActorLocation(pos + FVector::UpVector * deltaTime * 100);
+	SetActorLocation(GetActorLocation() + FVector::UpVector * deltaTime * 100);
 }
 
 void ATile::BeginPlay()
@@ -66,10 +63,5 @@ void ATile::BeginPlay()
 	Super::BeginPlay();
 	
 	lblNum = this->FindComponentByClass<UTextRenderComponent>();
-}
-
-void ATile::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 }
 

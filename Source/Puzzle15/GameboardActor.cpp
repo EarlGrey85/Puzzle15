@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "GameboardActor.h"
 
 #include "Kismet/GameplayStatics.h"
@@ -8,28 +5,29 @@
 
 static FVector tileScale;
 static FVector boardPosition;
-static float boardWidth = 0;
-static float boardExtentsZ = 0;
+static float boardWidth;
+static float boardExtentsZ;
 static FTransform transform;
 static float initialOffset;
 static float tileSize;
 static int lastTileCount;
 static int numTiles;
-struct Coord emptyTileCoord;
-FVector movementDir;
+//todo: put these above into Settings class
+
 static Coord noMovement = Coord(0, 0);
 static Coord rightMove = Coord(1, 0);
 static Coord leftMove = Coord(-1, 0);
 static Coord upMove = Coord(0, -1);
 static Coord downMove = Coord(0, 1);
 
-// Sets default values
+struct Coord emptyTileCoord;
+FVector movementDir;
+
 AGameboardActor::AGameboardActor()
 {
-    // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
-    boardMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-    boardMesh->SetupAttachment(RootComponent);
+    _boardMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+    _boardMesh->SetupAttachment(RootComponent);
     boardPosition = GetActorLocation();
 
     transform = GetTransform();
@@ -38,7 +36,6 @@ AGameboardActor::AGameboardActor()
    
 }
 
-// Called when the game starts or when spawned
 void AGameboardActor::BeginPlay()
 {
     Super::BeginPlay();
@@ -54,7 +51,7 @@ Coord GetCoordinates(const FVector* hitPos)
 {
     int column = ((*hitPos).Y + tileSize * (initialOffset + 0.5f)) / tileSize;
     int raw = numTiles - ((*hitPos).X + tileSize * (initialOffset + 0.5f)) / tileSize;
-    UE_LOG(LogTemp, Warning, TEXT("%d:%d"), column, raw);
+    UE_LOG(LogTemp, Warning, TEXT("asdada %f:%d"), tileSize, raw);
 
     return Coord(column, raw);
 }
@@ -65,9 +62,15 @@ void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
     UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetHitResultUnderCursor(ECC_WorldDynamic, false, hit);
     auto location = GetTransform().InverseTransformPositionNoScale(hit.ImpactPoint);
     auto hitCoord = GetCoordinates(&location);
-    const auto moveDir = DetermineMoveDir(&hitCoord);
-    movementDir = FVector(moveDir->Y, moveDir->X, 0);
-    Move(&hitCoord, moveDir);
+    const auto movementCoord = DetermineMoveDir(&hitCoord);
+
+    if(movementCoord == &noMovement)
+    {
+        return;
+    }
+    
+    movementDir = FVector(movementCoord->Y, movementCoord->X, 0);
+    Move(&hitCoord, movementCoord);
 }
 
 AGameboardActor::~AGameboardActor()
@@ -95,7 +98,19 @@ Coord* AGameboardActor::DetermineMoveDir(Coord* hitCoord)
     return  hitCoord->X < emptyTileCoord.X ? &rightMove : &leftMove;
 }
 
-void AGameboardActor::Move(Coord* hitCoord, Coord* move)
+void helper(int index, int nextEmptyTileIndex, ATile** grid, int offset)
+{
+    while (index != nextEmptyTileIndex)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.X);
+        const auto nextIndex = index - offset;
+        grid[nextIndex]->MoveTo(movementDir);
+        grid[index] = grid[nextIndex];
+        index -= offset;
+    }
+}
+
+void AGameboardActor::Move(Coord* hitCoord, Coord* movement)
 {
     auto offset = numTiles * hitCoord->Y;
     auto index = emptyTileCoord.X + numTiles * emptyTileCoord.Y;
@@ -105,37 +120,35 @@ void AGameboardActor::Move(Coord* hitCoord, Coord* move)
     {
         while (index != nextEmptyTileIndex)
         {
-            UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.X);
-            const auto nextIndex = index - move->X;
+            const auto nextIndex = index - movement->X;
             _grid[nextIndex]->MoveTo(movementDir);
             _grid[index] = _grid[nextIndex];
-            index -= move->X;
+            index -= movement->X;
         }
     }
     else if(hitCoord->X == emptyTileCoord.X)
     {
         while (index != nextEmptyTileIndex)
         {
-            UE_LOG(LogTemp, Warning, TEXT("move %d:%d"), index, emptyTileCoord.Y);
-            const auto nextIndex = index - move->Y * numTiles;
+            const auto nextIndex = index - movement->Y * numTiles;
             _grid[nextIndex]->MoveTo(-movementDir);
             _grid[index] = _grid[nextIndex];
-            index -= move->Y * numTiles;
+            index -= movement->Y * numTiles;
         }
     }
 
     emptyTileCoord = *hitCoord;
     _grid[nextEmptyTileIndex] = nullptr;
 
-    for (int i = 0; i < numTiles * numTiles; i++)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("tile %d"), _grid[i] == nullptr ? -1 : _grid[i]->GetNum());
-    }
+    // for (int i = 0; i < numTiles * numTiles; i++)
+    // {
+    //     UE_LOG(LogTemp, Warning, TEXT("tile %d"), _grid[i] == nullptr ? -1 : _grid[i]->GetNum());
+    // }
 }
 
 static FVector GetTileSpawnPosition(float zPos, int raw, int col)
 {
-    auto pos = FVector::UpVector * (zPos + 3);
+    auto pos = FVector::UpVector * (zPos);
     pos.Y -= tileSize * (initialOffset - col);
     pos.X += tileSize * (initialOffset - raw);
     return pos;
@@ -143,7 +156,9 @@ static FVector GetTileSpawnPosition(float zPos, int raw, int col)
 
 void AGameboardActor::SpawnTiles(int num)
 {
-    UE_LOG(LogTemp, Warning, TEXT("suka, %f, %f"), pool.size(), sizeof(int));
+    UE_LOG(LogTemp, Warning, TEXT("QQQQQQQQQQQQQQQQ %d"), num);
+
+    
     if (_grid != nullptr)
     {
         for (int i = 0; i < lastTileCount; ++i)
@@ -158,16 +173,17 @@ void AGameboardActor::SpawnTiles(int num)
     _grid = new ATile*[lastTileCount]{nullptr};
     numTiles = num;
 
-    auto ratio = static_cast<float>(1) / static_cast<float>(num) * 0.90f; // * (boardWidth / tileWidth)
+    const auto ratio = static_cast<float>(1) / static_cast<float>(num) * 0.90f;
     tileScale = FVector(ratio, ratio, ratio);
     tileSize = boardWidth / num;
+    UE_LOG(LogTemp, Warning, TEXT("tileSize %f %d"), tileSize, num);
     initialOffset = num % 2 == 0 ? num / 2 - 0.5 : num / 2;
     FVector tileExtents = FVector::ZeroVector;
 
     for (int i = 0; i < num * num - 1; ++i)
     {
-        auto raw = i / num;
-        auto col = i % num;
+        const auto raw = i / num;
+        const auto col = i % num;
 
         auto t = GetTile();
         t->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
@@ -181,7 +197,7 @@ void AGameboardActor::SpawnTiles(int num)
 
         const auto tilePos = GetTileSpawnPosition(tileExtents.X, raw, col);
         t->SetActorRelativeLocation(tilePos);
-        t->Initialize(i + 1, &tileSize);
+        t->Initialize(i + 1, tileSize, _tileMoveDuration);
         _grid[i] = t;
     }
 
@@ -190,15 +206,14 @@ void AGameboardActor::SpawnTiles(int num)
 
 ATile* AGameboardActor::GetTile()
 {
-    if (pool.empty())
+    if (_pool.empty())
     {
-        return GetWorld()->SpawnActor<ATile>(tile, transform);
+        return GetWorld()->SpawnActor<ATile>(_tile, transform);
     }
 
-    const auto t = pool.front();
-    pool.pop();
+    const auto t = _pool.front();
+    _pool.pop();
     t->SetActive(true);
-    UE_LOG(LogTemp, Warning, TEXT("%d, pool size"), pool.size());
     return t;
 }
 
@@ -209,12 +224,6 @@ void AGameboardActor::RecycleTile(ATile* t)
         return;
     }
 
-    pool.emplace(t);
+    _pool.emplace(t);
     t->SetActive(false);
-}
-
-// Called every frame
-void AGameboardActor::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
 }

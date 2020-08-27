@@ -15,9 +15,9 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* TileMesh;
 
-	int GetNum();	
-	void Initialize(int n, float* width);
-	void MoveTo(const FVector dir);
+	int GetNum() const;	
+	void Initialize(int num, float& width, float& duration);
+	void MoveTo(const FVector dir) const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -33,7 +33,6 @@ private:
 	FTransform _transform;  
 
 public:	
-	virtual void Tick(float DeltaTime) override;
 	void SetActive(bool activate);
 	void MoveStateTick(float deltaTime);
 };
