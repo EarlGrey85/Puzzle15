@@ -56,7 +56,6 @@ void ATile::MoveTo(const FVector dir, const bool instant) const
 void ATile::SetActive(const bool activate) 
 {
 	SetActorHiddenInGame(!activate);
-	SetActorTickEnabled(activate);
 }
 
 void ATile::MoveStateTick(float deltaTime)
