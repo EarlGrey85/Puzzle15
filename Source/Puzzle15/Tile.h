@@ -17,7 +17,7 @@ public:
 
 	int GetNum() const;	
 	void Initialize(int num, float& width, float& duration);
-	void MoveTo(const FVector dir) const;
+	void MoveTo(const FVector dir, const bool instant = false) const;
 
 protected:
 	virtual void BeginPlay() override;

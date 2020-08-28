@@ -31,7 +31,7 @@ public:
 	void SpawnTiles(int numTiles);
 
 	UFUNCTION(BlueprintCallable)
-	void Randomize();
+	void Shuffle();
 
 	UPROPERTY(BlueprintAssignable)
 	FWinDelegate OnWinDelegate;
@@ -56,5 +56,5 @@ private:
 	ATile* GetTile();
 	void RecycleTile(ATile*);
 	Coord* DetermineMoveDir(const Coord& hitCoord) const;
-	void Move(const Coord& hitCoord, const Coord& movement);
+	void Move(const Coord& hitCoord, const Coord& movement, const bool instant = false);
 };

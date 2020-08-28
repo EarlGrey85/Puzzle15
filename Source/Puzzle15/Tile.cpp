@@ -32,18 +32,25 @@ void ATile::Initialize(int num, float& width, float& duration)
 	timeToMove = duration;
 }
 
-void ATile::MoveTo(const FVector dir) const
+void ATile::MoveTo(const FVector dir, const bool instant) const
 {
-	UKismetSystemLibrary::MoveComponentTo(
-		TileMesh,
-		TileMesh->GetRelativeLocation() + dir * _width,
-		TileMesh->GetRelativeRotation(),
-		false,
-		false,
-		timeToMove,
-		false,
-		EMoveComponentAction::Move,
-		_latentInfo);
+	if(instant)
+	{
+		TileMesh->SetRelativeLocation(TileMesh->GetRelativeLocation() + dir * _width);
+	}
+	else
+	{
+		UKismetSystemLibrary::MoveComponentTo(
+        TileMesh,
+        TileMesh->GetRelativeLocation() + dir * _width,
+        TileMesh->GetRelativeRotation(),
+        false,
+        false,
+        timeToMove,
+        false,
+        EMoveComponentAction::Move,
+        _latentInfo);
+	}
 }
 
 void ATile::SetActive(const bool activate) 

@@ -106,7 +106,7 @@ Coord* AGameboardActor::DetermineMoveDir(const Coord& hitCoord) const
 //     }
 // }
 
-void AGameboardActor::Move(const Coord& hitCoord, const Coord& movement)
+void AGameboardActor::Move(const Coord& hitCoord, const Coord& movement, const bool instant)
 {
     _movementDir = FVector(movement.Y, movement.X, 0);
     const auto offset = numTiles * hitCoord.Y;
@@ -118,7 +118,7 @@ void AGameboardActor::Move(const Coord& hitCoord, const Coord& movement)
         while (index != nextEmptyTileIndex)
         {
             const auto nextIndex = index - movement.X;
-            _grid[nextIndex]->MoveTo(_movementDir);
+            _grid[nextIndex]->MoveTo(_movementDir, instant);
             _grid[index] = _grid[nextIndex];
             index -= movement.X;
         }
@@ -128,7 +128,7 @@ void AGameboardActor::Move(const Coord& hitCoord, const Coord& movement)
         while (index != nextEmptyTileIndex)
         {
             const auto nextIndex = index - movement.Y * numTiles;
-            _grid[nextIndex]->MoveTo(-_movementDir);
+            _grid[nextIndex]->MoveTo(-_movementDir, instant);
             _grid[index] = _grid[nextIndex];
             index -= movement.Y * numTiles;
         }
@@ -137,10 +137,10 @@ void AGameboardActor::Move(const Coord& hitCoord, const Coord& movement)
     _emptyTileCoord = hitCoord;
     _grid[nextEmptyTileIndex] = nullptr;
 
-    // for (int i = 0; i < numTiles * numTiles; i++)
-    // {
-    //     UE_LOG(LogTemp, Warning, TEXT("tile %d"), _grid[i] == nullptr ? -1 : _grid[i]->GetNum());
-    // }
+    if(instant)
+    {
+        return;
+    }
 
     CheckWin();
 }
@@ -199,27 +199,17 @@ void AGameboardActor::SpawnTiles(int num)
     _emptyTileCoord = Coord(num - 1, num - 1);
 }
 
-void AGameboardActor::Randomize()
+void AGameboardActor::Shuffle()
 {
-    auto fakeHit = Coord(_emptyTileCoord.X - 2, _emptyTileCoord.Y);
-    auto fakeMoveCoord = DetermineMoveDir(fakeHit);
-    Move(fakeHit, *fakeMoveCoord);
-    fakeHit = Coord(_emptyTileCoord.X, _emptyTileCoord.Y - 1);
-    fakeMoveCoord = DetermineMoveDir(fakeHit);
-    Move(fakeHit, *fakeMoveCoord);
-    fakeHit = Coord(_emptyTileCoord.X, _emptyTileCoord.Y - 2);
-    fakeMoveCoord = DetermineMoveDir(fakeHit);
-    Move(fakeHit, *fakeMoveCoord);
-    
-    // for (int i = 0; i < 2; ++i)
-    // {
-    //     auto index = FMath::RandRange(0, numTiles - 1);
-    //     const auto xOrY = FMath::RandRange(0, 100) > 50;
-    //     auto fakeHit = Coord(xOrY ? index : _emptyTileCoord.X, xOrY ? _emptyTileCoord.Y : index);
-    //     UE_LOG(LogTemp, Warning, TEXT("fakeHit %d%d"), fakeHit.X, fakeHit.Y);
-    //     const auto fakeMoveCoord = DetermineMoveDir(fakeHit);
-    //     Move(fakeHit, *fakeMoveCoord);
-    // }
+    for (int i = 0; i < 100; ++i)
+    {
+        auto index = FMath::RandRange(0, numTiles - 1);
+        const auto xOrY = FMath::RandRange(0, 100) > 50;
+        auto fakeHit = Coord(xOrY ? index : _emptyTileCoord.X, xOrY ? _emptyTileCoord.Y : index);
+        UE_LOG(LogTemp, Warning, TEXT("fakeHit %d, %d"), fakeHit.X, fakeHit.Y);
+        const auto fakeMoveCoord = DetermineMoveDir(fakeHit);
+        Move(fakeHit, *fakeMoveCoord, true);
+    }
 }
 
 void AGameboardActor::CheckWin()
