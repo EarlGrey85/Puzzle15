@@ -42,12 +42,11 @@ void AGameboardActor::BeginPlay()
     this->OnClicked.AddDynamic(this, &AGameboardActor::OnSelected);
 }
 
-Coord GetCoordinates(const FVector* hitPos, const float* tileSize)
+Coord GetCoordinates(const FVector& hitPos, const float& tileSize)
 {
-    const float offset = *tileSize * (initialOffset + 0.5f);
-    const int column = ((*hitPos).Y + offset) / *tileSize;
-    const int raw = numTiles - ((*hitPos).X + offset) / *tileSize;
-    UE_LOG(LogTemp, Warning, TEXT("tileSize: %f"), tileSize);
+    const float offset = tileSize * (initialOffset + 0.5f);
+    const int column = (hitPos.Y + offset) / tileSize;
+    const int raw = numTiles - (hitPos.X + offset) / tileSize;
 
     return Coord(column, raw);
 }
@@ -56,18 +55,18 @@ void AGameboardActor::OnSelected(AActor* Target, FKey ButtonPressed)
 {
     FHitResult hit(ForceInit);
     UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetHitResultUnderCursor(ECC_WorldDynamic, false, hit);
-    auto location = GetTransform().InverseTransformPositionNoScale(hit.ImpactPoint);
-    auto hitCoord = GetCoordinates(&location, &_tileSize);
-    auto movementCoord = DetermineMoveDir(hitCoord);
+    const auto location = GetTransform().InverseTransformPositionNoScale(hit.ImpactPoint);
+    const auto hitCoord = GetCoordinates(location, _tileSize);
+    const auto movementCoord = DetermineMoveDir(hitCoord);
     UE_LOG(LogTemp, Warning,
-        TEXT("hit coord: (%d:%d), movement coord: (%d:%d)"), hitCoord.X, hitCoord.Y, movementCoord.X, movementCoord.Y);
+        TEXT("hit coord: (%d:%d), movement coord: (%d:%d)"), hitCoord.X, hitCoord.Y, movementCoord->X, movementCoord->Y);
 
-    if(movementCoord == noMovement)
+    if(movementCoord == &noMovement)
     {
         return;
     }
     
-    Move(hitCoord, movementCoord);
+    Move(hitCoord, *movementCoord);
 }
 
 AGameboardActor::~AGameboardActor()
@@ -75,24 +74,24 @@ AGameboardActor::~AGameboardActor()
     delete[] _grid;
 }
 
-Coord AGameboardActor::DetermineMoveDir(Coord hitCoord)
+Coord* AGameboardActor::DetermineMoveDir(const Coord& hitCoord) const
 {
     if(hitCoord.X != _emptyTileCoord.X && hitCoord.Y != _emptyTileCoord.Y)
     {
-        return noMovement;
+        return &noMovement;
     }
 
     if(hitCoord.X == _emptyTileCoord.X && hitCoord.Y == _emptyTileCoord.Y)
     {
-        return noMovement;
+        return &noMovement;
     }
 
     if(hitCoord.X == _emptyTileCoord.X)
     {
-        return  hitCoord.Y < _emptyTileCoord.Y ? downMove : upMove;
+        return  hitCoord.Y < _emptyTileCoord.Y ? &downMove : &upMove;
     }
 
-    return  hitCoord.X < _emptyTileCoord.X ? rightMove : leftMove;
+    return  hitCoord.X < _emptyTileCoord.X ? &rightMove : &leftMove;
 }
 
 // void helper(int index, int nextEmptyTileIndex, ATile** grid, int offset)
@@ -107,7 +106,7 @@ Coord AGameboardActor::DetermineMoveDir(Coord hitCoord)
 //     }
 // }
 
-void AGameboardActor::Move(Coord hitCoord, Coord movement)
+void AGameboardActor::Move(const Coord& hitCoord, const Coord& movement)
 {
     _movementDir = FVector(movement.Y, movement.X, 0);
     const auto offset = numTiles * hitCoord.Y;
@@ -173,7 +172,6 @@ void AGameboardActor::SpawnTiles(int num)
     const auto ratio = static_cast<float>(1) / static_cast<float>(num) * 0.90f;
     tileScale = FVector(ratio, ratio, ratio);
     _tileSize = boardWidth / num;
-    UE_LOG(LogTemp, Warning, TEXT("tileSize %f %d"), _tileSize, num);
     initialOffset = num % 2 == 0 ? num / 2 - 0.5 : num / 2;
     FVector tileExtents = FVector::ZeroVector;
 
@@ -199,19 +197,29 @@ void AGameboardActor::SpawnTiles(int num)
     }
     
     _emptyTileCoord = Coord(num - 1, num - 1);
-
-    UE_LOG(LogTemp, Warning, TEXT("raz %d:%d:%d"), _emptyTileCoord.X, _emptyTileCoord.Y, num);
 }
 
 void AGameboardActor::Randomize()
 {
-    UE_LOG(LogTemp, Warning, TEXT("dva"));
-    const auto fakeHit = Coord(_emptyTileCoord.X - 2, _emptyTileCoord.Y);
-    const auto fakeMoveCoord = DetermineMoveDir(fakeHit);
-
-    UE_LOG(LogTemp, Warning, TEXT("dvig %d:%d"), fakeMoveCoord.X, fakeMoveCoord.Y);
+    auto fakeHit = Coord(_emptyTileCoord.X - 2, _emptyTileCoord.Y);
+    auto fakeMoveCoord = DetermineMoveDir(fakeHit);
+    Move(fakeHit, *fakeMoveCoord);
+    fakeHit = Coord(_emptyTileCoord.X, _emptyTileCoord.Y - 1);
+    fakeMoveCoord = DetermineMoveDir(fakeHit);
+    Move(fakeHit, *fakeMoveCoord);
+    fakeHit = Coord(_emptyTileCoord.X, _emptyTileCoord.Y - 2);
+    fakeMoveCoord = DetermineMoveDir(fakeHit);
+    Move(fakeHit, *fakeMoveCoord);
     
-    Move(fakeHit, fakeMoveCoord);
+    // for (int i = 0; i < 2; ++i)
+    // {
+    //     auto index = FMath::RandRange(0, numTiles - 1);
+    //     const auto xOrY = FMath::RandRange(0, 100) > 50;
+    //     auto fakeHit = Coord(xOrY ? index : _emptyTileCoord.X, xOrY ? _emptyTileCoord.Y : index);
+    //     UE_LOG(LogTemp, Warning, TEXT("fakeHit %d%d"), fakeHit.X, fakeHit.Y);
+    //     const auto fakeMoveCoord = DetermineMoveDir(fakeHit);
+    //     Move(fakeHit, *fakeMoveCoord);
+    // }
 }
 
 void AGameboardActor::CheckWin()
@@ -220,11 +228,8 @@ void AGameboardActor::CheckWin()
     {
         if(_grid[i] == nullptr || i != _grid[i]->GetNum() - 1)
         {
-            UE_LOG(LogTemp, Warning, TEXT("no win"));
             return;
         }
-        
-        UE_LOG(LogTemp, Warning, TEXT("dva %d"), _grid[i]->GetNum());
     }
 
     UE_LOG(LogTemp, Warning, TEXT("win"));
@@ -251,6 +256,6 @@ void AGameboardActor::RecycleTile(ATile* tile)
         return;
     }
 
-    _pool.emplace(tile);
+    _pool.push(tile);
     tile->SetActive(false);
 }

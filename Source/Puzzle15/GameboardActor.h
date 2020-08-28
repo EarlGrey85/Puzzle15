@@ -14,15 +14,6 @@ UCLASS()
 class PUZZLE15_API AGameboardActor : public AActor
 {
 	GENERATED_BODY()
-
-	static enum MoveDirections
-	{
-		None,
-        Left,
-        Right,
-        Up,
-        Down
-    };
 	
 public:	
 	AGameboardActor();
@@ -64,6 +55,6 @@ private:
 
 	ATile* GetTile();
 	void RecycleTile(ATile*);
-	Coord DetermineMoveDir(Coord hitCoord);
-	void Move(Coord hitCoord, Coord movement);
+	Coord* DetermineMoveDir(const Coord& hitCoord) const;
+	void Move(const Coord& hitCoord, const Coord& movement);
 };
