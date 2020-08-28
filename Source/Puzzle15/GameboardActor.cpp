@@ -199,14 +199,13 @@ void AGameboardActor::SpawnTiles(int num)
     _emptyTileCoord = Coord(num - 1, num - 1);
 }
 
-void AGameboardActor::Shuffle()
+void AGameboardActor::Shuffle() // make random moves from solved state
 {
     for (int i = 0; i < 100; ++i)
     {
         auto index = FMath::RandRange(0, numTiles - 1);
         const auto xOrY = FMath::RandRange(0, 100) > 50;
         auto fakeHit = Coord(xOrY ? index : _emptyTileCoord.X, xOrY ? _emptyTileCoord.Y : index);
-        UE_LOG(LogTemp, Warning, TEXT("fakeHit %d, %d"), fakeHit.X, fakeHit.Y);
         const auto fakeMoveCoord = DetermineMoveDir(fakeHit);
         Move(fakeHit, *fakeMoveCoord, true);
     }
