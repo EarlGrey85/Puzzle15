@@ -24,8 +24,6 @@ protected:
 
 private:
 	UTextRenderComponent* lblNum;
-	UPROPERTY(VisibleInstanceOnly)
-	UTextRenderComponent* _displayText;
 
 	int _num;
 	float _width;
