@@ -24,11 +24,7 @@ AGameboardActor::AGameboardActor()
     _boardMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
     _boardMesh->SetupAttachment(RootComponent);
     boardPosition = GetActorLocation();
-
-    transform = GetTransform();
-    UE_LOG(LogTemp, Warning, TEXT("%s"), *boardPosition.ToString());
-    UE_LOG(LogTemp, Warning, TEXT("%s"), "1");
-   
+    transform = GetTransform();   
 }
 
 void AGameboardActor::BeginPlay()
