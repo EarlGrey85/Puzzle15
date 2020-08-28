@@ -34,7 +34,6 @@ void ATile::Initialize(int num, float& width, float& duration)
 
 void ATile::MoveTo(const FVector dir) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("%f"), timeToMove);
 	UKismetSystemLibrary::MoveComponentTo(
 		TileMesh,
 		TileMesh->GetRelativeLocation() + dir * _width,

@@ -30,7 +30,7 @@ private:
 	int _num;
 	float _width;
 	FLatentActionInfo _latentInfo;
-	FTransform _transform;  
+	FTransform _transform;
 
 public:	
 	void SetActive(bool activate);
